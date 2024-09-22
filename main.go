@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"practicum/basic/tasks/catalog/sh"
 	"strings"
 	"time"
 )
 
-type File interface {
-	Name() string
-	Path() string
-	// TODO дописать свои методы
-}
+type File = sh.File
 
 func main() {
 	currentFile := loadFiles()
@@ -35,14 +32,15 @@ func main() {
 
 // loadFiles загружает дерево файлов из data.go
 // Возвращает назад корневой файл rootFile — директорию /
-func loadFiles() (rootFile File) {
-	return nil // TODO реализовать загрузку дерева файлов
+func loadFiles() File {
+	return sh.Parse(fileNames, directories, fileParents)
 }
 
 // doCommand выполняет команду cmd с аргументом arg (может быть пустым) над текущим файлом currentFile
 // Возвращает назад сообщение о результате result (может быть пустым) и текущий после выполнения команды файл newCurrentFile
 func doCommand(cmd, arg string, currentFile File) (result string, newCurrentFile File) {
-	return // TODO реализовать выполнение команд
+	result, newCurrentFile = sh.Cmd(cmd).Execute(currentFile, arg)
+	return
 }
 
 // readCommand читает пользовательский ввод через reader
