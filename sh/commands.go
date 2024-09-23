@@ -11,8 +11,8 @@ import (
 type File interface {
 	Name() string
 	Path() string
-	Child() []*File
-	Parent() *File
+	Child() []File
+	Parent() File
 	IsDirectory() bool
 }
 
@@ -43,18 +43,26 @@ func quit(f File, args ...string) (string, File) {
 func getFileByPath(start File, path string) File {
 	path = filepath.Clean(path)
 	cFile := start
-	for _, dir := range strings.Split(path, string(os.PathSeparator)) {
-		if dir == ".." {
-			if cFile.Parent() != nil {
-				cFile = *cFile.Parent()
-			}
-		} else {
-			if fInd := slices.IndexFunc(cFile.Child(), func(file *File) bool {
-				return (*file).Name() == dir && (*file).IsDirectory()
-			}); fInd != -1 {
-				cFile = *cFile.Child()[fInd]
+	if strings.HasPrefix(path, string(os.PathSeparator)) {
+		for cFile.Parent() != nil {
+			cFile = cFile.Parent()
+		}
+		path = strings.TrimPrefix(path, string(os.PathSeparator))
+	}
+	if len(path) > 0 {
+		for _, search := range strings.Split(path, string(os.PathSeparator)) {
+			if search == ".." {
+				if cFile.Parent() != nil {
+					cFile = cFile.Parent()
+				}
 			} else {
-				return nil
+				if fInd := slices.IndexFunc(cFile.Child(), func(file File) bool {
+					return file.Name() == search && file.IsDirectory()
+				}); fInd != -1 {
+					cFile = cFile.Child()[fInd]
+				} else {
+					return nil
+				}
 			}
 		}
 	}
@@ -73,21 +81,22 @@ func cd(f File, args ...string) (string, File) {
 
 func ls(f File, args ...string) (string, File) {
 	ff := f
-	if len(args) > 0 {
+	if len(args) > 0 && len(args[0]) > 0 {
 		ff = getFileByPath(f, args[0])
 		if ff == nil {
-			ff = f
+			return fmt.Sprintf("Неизвестная директория: %s\n", args[0]), f
 		}
 	}
 	if len(ff.Child()) > 0 {
+
 		b := strings.Builder{}
 		for _, c := range ff.Child() {
-			if (*c).IsDirectory() {
+			if c.IsDirectory() {
 				b.WriteString("[d] ")
 			} else {
 				b.WriteString("[f] ")
 			}
-			b.WriteString((*c).Name())
+			b.WriteString(c.Name())
 			b.WriteString("\n")
 		}
 		return b.String()[:b.Len()], f
@@ -104,6 +113,7 @@ type Exec struct {
 }
 
 func Cmd(cmd string) *Exec {
+	cmd = strings.TrimSpace(cmd)
 	if _, ok := fn[cmd]; ok {
 		return &Exec{fn: fn[cmd]}
 	}
@@ -116,5 +126,7 @@ func Cmd(cmd string) *Exec {
 }
 
 func (r *Exec) Execute(f File, args string) (string, File) {
+	//TODO parse and prepare args
+	args = strings.TrimSpace(args)
 	return r.fn(f, args)
 }

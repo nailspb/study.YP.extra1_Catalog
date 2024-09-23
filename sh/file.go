@@ -1,6 +1,7 @@
 package sh
 
 import (
+	"cmp"
 	"path"
 	"slices"
 )
@@ -13,8 +14,22 @@ type FileT struct {
 	child       []*FileT
 }
 
+func sortChild(child []*FileT) {
+	slices.SortFunc(child, func(a, b *FileT) int {
+		if a.isDirectory && b.isDirectory {
+			return cmp.Compare(a.name, b.name)
+		} else if a.isDirectory && !b.isDirectory {
+			return -1
+		} else if !a.isDirectory && b.isDirectory {
+			return 1
+		} else {
+			return cmp.Compare(a.name, b.name)
+		}
+	})
+}
+
 func Parse(fileNames []string, directories map[int]struct{}, parents map[int]int) File {
-	root := FileT{
+	root := &FileT{
 		index:       0,
 		name:        "/",
 		isDirectory: true,
@@ -30,23 +45,25 @@ func Parse(fileNames []string, directories map[int]struct{}, parents map[int]int
 		}
 		if parent, ok := parents[ind]; ok {
 			files[parent].child = append(files[parent].child, &files[ind])
+			sortChild(files[parent].child)
 			files[ind].parent = &files[parent]
 		} else {
 			root.child = append(root.child, &files[ind])
-			files[ind].parent = &root
+			files[ind].parent = root
+			sortChild(root.child)
 		}
 	}
 	return root
 }
 
-func (f FileT) Name() string {
+func (f *FileT) Name() string {
 	if f.name != "/" {
 		return f.name
 	}
 	return ""
 }
 
-func (f FileT) Path() string {
+func (f *FileT) Path() string {
 	el := []string{f.name}
 	parent := f.parent
 	for parent != nil {
@@ -61,23 +78,22 @@ func (f FileT) Path() string {
 	return p
 }
 
-func (f FileT) Child() []*File {
-	c := make([]*File, len(f.child))
+func (f *FileT) Child() []File {
+	//cast to interface type
+	c := make([]File, len(f.child))
 	for ind, v := range f.child {
-		castInterface := File(*v)
-		c[ind] = &castInterface
+		c[ind] = v
 	}
 	return c
 }
 
-func (f FileT) IsDirectory() bool {
+func (f *FileT) IsDirectory() bool {
 	return f.isDirectory
 }
 
-func (f FileT) Parent() *File {
+func (f *FileT) Parent() File {
 	if f.parent != nil {
-		castInterface := File(*(f.parent))
-		return &castInterface
+		return f.parent
 	}
 	return nil
 }
